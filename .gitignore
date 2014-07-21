@@ -1,0 +1,4 @@
+awswrapper
+awswrapper/*
+*.swp
+Gemfile.lock

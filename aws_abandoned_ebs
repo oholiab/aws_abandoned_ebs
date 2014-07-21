@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'json'
+require 'pp'
+
+`git clone https://github.com/oholiab/awswrapper` unless File.directory?('./awswrapper')
+
+detached = {}
+detached[:volumes] = []
+detached[:stats] = {}
+accounts = ARGV
+regions = `./awswrapper/bin/awsw -a #{accounts.first} -c "ec2-describe-regions" | awk -F "\t" '{print $2}'`.split("\n")
+
+actual_total = 0
+accounts.each do |account|
+  account_count = 0
+  detached[:stats][account] = {}
+  regions.each do |region|
+    region_count = 0
+    aws_json = `./awswrapper/bin/awsw -a #{account} -c "aws ec2 describe-volumes --region #{region}"`
+    aws_data = JSON.parse(aws_json)
+    aws_data["Volumes"].each do |volume|
+      if volume["State"] != "in-use"
+        detached[:volumes] << volume 
+        account_count += 1
+        region_count += 1
+        actual_total += 1
+      end
+    end
+    detached[:stats][account][region] = region_count
+  end
+  detached[:stats][account][:total] = account_count
+end
+detached[:stats][:total] = actual_total
+
+puts JSON.pretty_generate(detached)
